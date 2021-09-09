@@ -1,4 +1,7 @@
-#LDA COMPLETO 
+#MODELO LDA 
+
+#Fijar directorio de trabajo
+setwd('/Users/andreasb/Desktop/TEC/Ciencia de datos II/Código trabajo')
 
 ## Instalacion de librerias
 # Instalar - Cargar tidyverse                                                       
@@ -60,7 +63,8 @@ if(require(wordcloud) == FALSE){
 
 
 # Cargamos nuestras noticias
-noticias = read_csv("")
+noticias = read_csv('listo.csv')
+
 
 # Creamos un ID y nuestra categoria
 noticias_1 = noticias %>%
@@ -68,13 +72,13 @@ noticias_1 = noticias %>%
     # Creamos un ID unico
     id = titulo,
     # Corregimos los nombres en autoria
-    autor = str_trim(
+    autoria = str_trim(
       str_remove_all(
-        string = autor,
+        string = autoria,
         pattern = '\n|\\*|\\d+|V?\\.|/ ?[\\w]+'), 
       side = 'both'
     ),
-    autor = if_else(autor=="", 'Ahora Noticas', autor),
+    autoria = if_else(autoria=="", ' ', autoria),
     # Eliminamos urls y espacios dobles
     texto_limpio = str_remove_all(
       string = texto,
@@ -85,11 +89,11 @@ noticias_1 = noticias %>%
 # Extraemos bigramas para encontrar nombres propios
 bigramas = noticias_1 %>%
   unnest_tokens(
-    input = texto_raw, 
+    input = texto, 
     output = 'bigramas', 
     token = 'ngrams', n = 2,
     to_lower = FALSE
-  )  View (bigramas) %>%
+  ) %>%
   # Contamos cuantas veces aparecen
   count(bigramas,  sort = TRUE) %>%
   # Filtramos con una expression regular para obtener solo nombres propios
@@ -113,7 +117,17 @@ bigramas = setNames(bigramas$ners, bigramas$bigramas)
 
 # Definimos nuestras palabras de paro
 stop_words = tibble(palabra = c(stopwords('es'),'así','si','sí','sino','ayer',
-                                'hoy','año','sólo'))
+                                'hoy','año','sólo', 'pictwittercom', 'después', 'horas',
+                                'dos', 'tras', 'n', 'policía', 'embargo', 'además', 'lópez', 'pues', 
+                                'ahora', 'unidos', 'años', 'mientras', 'san', 'aunque', 
+                                'pues', 'mil', 'primer', 'luego', 'covid', 'solo', 'cuatro',
+                                'tipo', 'municipio', 'través', 'cinco', 'cuenta', 'tres', 'mismo', 'según', 'tabasco',
+                                'acuerdo', 'cabe', 'manera', 'seis', 'https', 'agosto', 'villahermosa', 'morena', 'fin', 
+                                'dio', 'señaló', 'dijo', 'ser', 'hace', 'ser','hace', 'mañana', 'forma', 
+                                'parte', 'policías', 'puede', 'hecho', 'general', 'aseguró','hechos', 'hecho', 
+                                'informó', 'aseguró', 'fiscalía', 'decir', 'días', 'lugar', 'momento', 'pasado',
+                                'día', 'jueves', 'cabo', 'pública', 'edad', 'josé', 'semana', 'colonia', 'presunto', 
+                                'presuntos', 'menos', 'encuentra', 'personas'))
 
 # Creamos nuestra bolsa de palabras
 noticias_tokens = noticias_1 %>%
@@ -125,7 +139,7 @@ noticias_tokens = noticias_1 %>%
   unnest_tokens(
     output = "palabra", 
     token = "words", 
-    input = texto_limpio
+    input = lim_text
   ) %>%
   # Removemos las palabras de paro
   anti_join(
@@ -136,6 +150,7 @@ noticias_tokens = noticias_1 %>%
     !str_detect(palabra,'[^\\w_]|\\d'),
   )
 
+ggplot(noticias_tokens)
 # Creamos nuestra DTM
 noticias_matriz = noticias_tokens %>%
   # Conteo de palabras por articulo
@@ -164,7 +179,7 @@ train = matriz_menos_rala[train_ind, ]
 test = matriz_menos_rala[-train_ind, ]
 
 # Ajustamos nuestro modelo
-lda_model = LDA(train, k = 5, method = 'Gibbs',
+lda_model = LDA(train, k = 4, method = 'Gibbs',
                 control = list(seed = 1111))
 
 # Evaluar log-verosimilitud
@@ -178,8 +193,7 @@ perplexity(lda_model, newdata = test)
 str(lda_model)
 
 # Definiendo el optimo
-# NOTA: NO EXISTE UNA REGLA DE DEDO, HAY VECES QUE UN RESULTADO INTUITIVO Y DE 
-# POCOS TOPICOS ES MEJOR QUE UNO ANALITICO CON CIENTOS DE TOPICOS
+# En este caso se eligieron 5 tópicos
 modelos = c()
 for(k in seq(2,20)){
   # Ajustamos nuestro modelo
@@ -267,7 +281,7 @@ grouped_gammas <- gammas %>%
   slice(1) %>%
   group_by(topic)
 
-# Numero de documentos por topico preponderante
+# Número de documentos por tópico preponderante
 grouped_gammas %>% 
   tally(topic, sort=TRUE)
 
@@ -298,7 +312,7 @@ ggplot(
 ) +
   geom_violin()
 
-# dispersion
+# Dispersion
 ggplot(
   data = gammas,
   aes(
@@ -315,30 +329,30 @@ betas = tidy(lda_model, matrix="beta")
 head(betas)
 
 # Top15 de palabras para cada topico
-terms(lda_model, k=15)
+ejes <- terms(lda_model, k=15)
+
+
 
 # Display wordclouds one at a time
-for (j in 1:5) {
+for (j in 1:4) {
   # Generate a table with word frequences for topic j
   word_frequencies <- betas %>% 
     mutate(n = trunc(beta * 10000)) %>% 
     filter(topic == j)
   
-  #Hasta aquí me sale sólo con una fuente. 
   
-  
-  
-  # Display word cloud
-  wordcloud(words = word_frequencies$term, 
-            freq = word_frequencies$n,
-            max.words = 100,
-            #  min.freq=1,
-            #  max.words=10,
-            scale = c(5, 1),
-            colors = c("DarkOrange", "CornflowerBlue", "DarkRed"), 
-            family = "Arial",
-            rot.per = 0)
+  # Display  de word cloud
+  grafica <- wordcloud(words = word_frequencies$term, 
+                       freq = word_frequencies$n,
+                       max.words = 50,
+                       #  min.freq=1,
+                       #  max.words=10,
+                       scale = c(1, 0.5),
+                       colors = c("DarkOrange", "CornflowerBlue", "DarkRed"), 
+                       family = "Arial",
+                       rot.per = 0)
 }
 
-# Podemos renomrar los topicos a partir de los hallazgos para hacer el analisis mas claro
+
+
 
