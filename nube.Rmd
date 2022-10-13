@@ -1,0 +1,68 @@
+---
+title: "nube_palabras"
+date: "2022-10-12"
+---
+
+```{r}
+setwd("/Users/andreasb/Desktop/TEC/Concentración/Actividades/act4")
+```
+
+```{r}
+sentencias <- read.csv("sentencias_completas.csv")
+
+```
+
+```{r}
+library(tidytext)
+library(wordcloud)
+library(dplyr)
+library(stringr)
+library(RColorBrewer)
+```
+
+```{r}
+library(stopwords)
+stop_words <- stopwords(language = "es", source="snowball")
+eliminar <- c("león", "pues", "nuevo", "así", "si")
+df_limpio1 <- sentencias %>%
+  unnest_tokens("word", Texto) %>%
+  filter(!(word %in% stop_words))%>%
+  filter(!(word %in% eliminar))
+
+```
+
+```{r}
+word_freq <- df_limpio1 %>% 
+  unnest_tokens(output = word,
+              input = word,
+              token = "words",
+              format = "text") %>%
+  count(word)
+View(word_freq)
+```
+
+```{r}
+
+wordcloud(words = word_freq$word,
+          freq = word_freq$n,
+          min.freq = 2,
+          max.words = 20,
+          colors =  c("Blue","Orange", "Red"),
+          random.order = F,
+          random.color = F,
+          scale = c(3 ,0.1),
+          rot.per = 0.3)
+
+```
+```{r}
+#Crear y guardar la nube como png
+png("nube.png")
+wordcloud(words = word_freq$word, freq = word_freq$n,
+          max.words=20, random.order=FALSE, rot.per=0.35,            
+          colors=brewer.pal(8, "Dark2"))
+dev.off()
+```
+
+
+
+
